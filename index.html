@@ -71,16 +71,45 @@
 			};
 			(async function () {
 							var total = 10094245, sizes = [524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 132773], count = sizes.length;
+							var CACHE_KEY = 'mcjs_epw_' + total;
 							var status = document.createElement('div');
 							status.style.cssText = 'position:fixed;top:12px;left:12px;z-index:99999;background:rgba(0,0,0,.78);color:#fff;padding:10px 14px;border-radius:6px;font:14px sans-serif';
-							status.textContent = '正在加载游戏资源 0%...';
+							status.textContent = '正在检查本地缓存...';
 							document.body.appendChild(status);
 							function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+							// IndexedDB 持久化缓存：首次下载后，之后打开秒进，无需再走国际线路
+							function openDB() {
+								return new Promise(function (res, rej) {
+									var req = indexedDB.open('mcjs-cache', 1);
+									req.onupgradeneeded = function () { req.result.createObjectStore('assets'); };
+									req.onsuccess = function () { res(req.result); };
+									req.onerror = function () { rej(req.error); };
+								});
+							}
+							async function readCache() {
+								try {
+									var db = await openDB();
+									return await new Promise(function (res) {
+										var r = db.transaction('assets', 'readonly').objectStore('assets').get(CACHE_KEY);
+										r.onsuccess = function () { res(r.result || null); };
+										r.onerror = function () { res(null); };
+									});
+								} catch (e) { return null; }
+							}
+							async function writeCache(blob) {
+								try {
+									var db = await openDB();
+									await new Promise(function (res) {
+										var tx = db.transaction('assets', 'readwrite');
+										tx.objectStore('assets').put(blob, CACHE_KEY);
+										tx.oncomplete = res; tx.onerror = res; tx.onabort = res;
+									});
+								} catch (e) { console.warn('[MCJS] cache write skipped:', e); }
+							}
 							async function getPart(i, expected) {
 								var base = './parts/' + String(i).padStart(2, '0') + '.bin';
 								for (var attempt = 0; attempt < 12; attempt++) {
 									try {
-										// 首次走缓存；重试加随机参数绕过可能缓存的半截响应
 										var url = attempt === 0 ? base : base + '?r=' + Date.now() + '-' + Math.random().toString(36).slice(2);
 										var ctl = new AbortController();
 										var timer = setTimeout(function () { ctl.abort(); }, 20000);
@@ -97,20 +126,28 @@
 									}
 								}
 							}
-							var parts = new Array(count), done = 0, cursor = 0;
-							async function worker() {
-								while (cursor < count) {
-									var i = cursor++;
-									parts[i] = await getPart(i, sizes[i]);
-									done++;
-									status.textContent = '正在加载游戏资源 ' + Math.round(done / count * 100) + '%...';
+							var blob = await readCache();
+							if (blob && blob.size === total) {
+								status.textContent = '已命中本地缓存，正在启动游戏...';
+								console.log('[MCJS] loaded assets from IndexedDB cache');
+							} else {
+								var parts = new Array(count), done = 0, cursor = 0;
+								async function worker() {
+									while (cursor < count) {
+										var i = cursor++;
+										parts[i] = await getPart(i, sizes[i]);
+										done++;
+										status.textContent = '正在加载游戏资源 ' + Math.round(done / count * 100) + '%...';
+									}
 								}
+								// 16 路并发：把国际线路的单连接慢Makefile摊平到多条连接
+								await Promise.all(Array.from({ length: 16 }, function () { return worker(); }));
+								blob = new Blob(parts, { type: 'application/octet-stream' });
+								if (blob.size !== total) throw new Error('assembled ' + blob.size + ' != ' + total);
+								status.textContent = '资源就绪，正在缓存并启动游戏...';
+								await writeCache(blob);
 							}
-							await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
-							var blob = new Blob(parts, { type: 'application/octet-stream' });
-							if (blob.size !== total) throw new Error('assembled ' + blob.size + ' != ' + total);
 							window.eaglercraftXOpts.assetsURI = URL.createObjectURL(blob);
-							status.textContent = '资源就绪，正在启动游戏...';
 							console.log('[MCJS] assets ready, starting game...');
 							await main();
 							status.remove();
