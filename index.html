@@ -71,7 +71,7 @@
 			};
 			(async function () {
 							var total = 10094245, sizes = [524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 132773], count = sizes.length;
-							var CACHE_KEY = 'mcjs_epw_' + total;
+							var CACHE_KEY = 'mcjs_epw_' + total + '_v2';
 							var status = document.createElement('div');
 							status.style.cssText = 'position:fixed;top:12px;left:12px;z-index:99999;background:rgba(0,0,0,.78);color:#fff;padding:10px 14px;border-radius:6px;font:14px sans-serif';
 							status.textContent = '正在检查本地缓存...';
@@ -110,7 +110,7 @@
 								var base = './parts/' + String(i).padStart(2, '0') + '.bin';
 								for (var attempt = 0; attempt < 12; attempt++) {
 									try {
-										var url = attempt === 0 ? base : base + '?r=' + Date.now() + '-' + Math.random().toString(36).slice(2);
+										var url = base + '?v=2' + (attempt === 0 ? '' : '&r=' + Date.now() + '-' + Math.random().toString(36).slice(2));
 										var ctl = new AbortController();
 										var timer = setTimeout(function () { ctl.abort(); }, 20000);
 										var resp = await fetch(url, { cache: 'force-cache', signal: ctl.signal });
