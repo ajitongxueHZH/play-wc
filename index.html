@@ -71,7 +71,7 @@
 			};
 			(async function () {
 							var total = 10094245, sizes = [524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 132773], count = sizes.length;
-							var CACHE_KEY = 'mcjs_epw_' + total;
+							var CACHE_KEY = 'mcjs_epw_' + total + '_clean';
 							var status = document.createElement('div');
 							status.style.cssText = 'position:fixed;top:12px;left:12px;z-index:99999;background:rgba(0,0,0,.78);color:#fff;padding:10px 14px;border-radius:6px;font:14px sans-serif';
 							status.textContent = '正在检查本地缓存...';
@@ -129,20 +129,9 @@
 							}
 							var blob = await readCache();
 							if (blob && blob.size === total) {
-								// 命中缓存：只需单独刷新第 0 片（启动图改过），其余 9.5MB 直接复用
-								status.textContent = '已命中本地缓存，正在更新启动图...';
-								try {
-									var freshHeader = await getPart(0, sizes[0], true);
-									var merged = new Uint8Array(total);
-									merged.set(new Uint8Array(await blob.slice(0).arrayBuffer()), 0);
-									merged.set(new Uint8Array(freshHeader), 0);
-									blob = new Blob([merged], { type: 'application/octet-stream' });
-									await writeCache(blob);
-									console.log('[MCJS] cache hit, refreshed part 0 only');
-								} catch (e) {
-									console.warn('[MCJS] part0 refresh failed, using cached:', e.message);
-								}
+								// 命中缓存直接使用，不做任何拼接（拼接会破坏 CRC 校验）
 								status.textContent = '已命中本地缓存，正在启动游戏...';
+								console.log('[MCJS] loaded assets from IndexedDB cache');
 							} else {
 								var parts = new Array(count), done = 0, cursor = 0;
 								async function worker() {
