@@ -103,7 +103,7 @@
 			};
 			(async function () {
 							var total = 10094245, sizes = [524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 524288, 132773], count = sizes.length;
-							var CACHE_KEY = 'mcjs_epw_' + total + '_clean';
+							var CACHE_KEY = 'mcjs_epw_' + total + '_v3';
 							var status = document.createElement('div');
 							status.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:99999;background:rgba(18,32,22,.88);color:#fff;padding:22px 34px;border-radius:14px;font:600 18px sans-serif;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.5);border:2px solid #6aa84f;min-width:280px';
 							status.textContent = '正在检查本地缓存...';
@@ -139,7 +139,7 @@
 								} catch (e) { console.warn('[MCJS] cache write skipped:', e); }
 							}
 							async function getPart(i, expected, forceRefresh) {
-								var base = './parts/' + String(i).padStart(2, '0') + '.bin';
+								var base = './parts/' + String(i).padStart(2, '0') + '.bin?v3';
 								for (var attempt = 0; attempt < 12; attempt++) {
 									try {
 										// 只有明确要求刷新（启动图那一片）才加随机参数绕缓存；其余走 CDN 缓存
